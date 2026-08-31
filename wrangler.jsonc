@@ -7,6 +7,10 @@
     "binding": "ASSETS",
     "directory": "./dist"
   },
+  "vars": {
+    "ENABLE_TEST_FIXTURE": "true",
+    "ORIGIN": "https://football-registration.cdfillmore.workers.dev"
+  },
   "d1_databases": [
     {
       "binding": "football_registration",
@@ -18,5 +22,5 @@
   "triggers": {
     "crons": ["* * * * *"]
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true, "redact_query_string": false }
 }
