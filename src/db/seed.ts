@@ -1,0 +1,3 @@
+import type Database from 'better-sqlite3';
+export const ROSTER = ['Peter Petrov','Alejandro Casallas','Thomas Cerda','Stephan Wilmes','Andrea Polesello','Maria Clara Miserendino','Francesco Di Matteo','Arjun Vasuki Kowshik','Benjamin Navarrete','Jaden Fitzpatrick','Maximiliano Rodriguez','Daniel Bedats','Niels Eelman','Kevin Park','Evgeny Tumarkin','Morteza Saghafian','Filip Ruzicka','Leopoldo Munoz','Rebecca Arnold','Pablo Pascual Cobo','Erfan Riyazi','Juan Aguilera','Federico Gonzales Brizzio','Tim Browning','Chris Filmore','Jakob Vorlaufer'];
+export function seedPlayers(db: Database.Database) { const add = db.prepare('INSERT OR IGNORE INTO players(name) VALUES (?)'); const tx = db.transaction(() => ROSTER.forEach(p => add.run(p))); tx(); }

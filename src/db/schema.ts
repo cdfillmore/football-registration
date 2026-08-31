@@ -1,0 +1,6 @@
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+export const players = sqliteTable('players', { id: integer('id').primaryKey({ autoIncrement: true }), name: text('name').notNull().unique() });
+export const fixtures = sqliteTable('fixtures', { id: integer('id').primaryKey({ autoIncrement: true }), startsAt: text('starts_at').notNull().unique(), materializedAt: text('materialized_at').notNull(), finalizedAt: text('finalized_at') });
+export const availability = sqliteTable('availability', { fixtureId: integer('fixture_id').notNull().references(() => fixtures.id), playerId: integer('player_id').notNull().references(() => players.id), keen: integer('keen', { mode: 'boolean' }).notNull().default(false) }, t => ({ unique: uniqueIndex('availability_fixture_player').on(t.fixtureId, t.playerId) }));
+export const lineup = sqliteTable('lineup', { fixtureId: integer('fixture_id').notNull().references(() => fixtures.id), playerId: integer('player_id').notNull().references(() => players.id), role: text('role', { enum: ['selected', 'reserve'] }).notNull(), position: integer('position').notNull() }, t => ({ unique: uniqueIndex('lineup_fixture_player').on(t.fixtureId, t.playerId) }));
+export const migrations = sqliteTable('migrations', { id: integer('id').primaryKey(), appliedAt: text('applied_at').notNull() });

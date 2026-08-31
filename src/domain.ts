@@ -1,0 +1,9 @@
+export const TZ = 'Europe/Vienna';
+export const localDemo = () => process.env.NODE_ENV !== 'production' && Boolean(process.env.DEV_FIXTURE_START);
+export const now = () => process.env.NODE_ENV !== 'production' && process.env.DEV_NOW ? new Date(process.env.DEV_NOW) : new Date();
+export const fixtureDates = () => { if (localDemo()) return [new Date(process.env.DEV_FIXTURE_START!)]; const out: Date[] = []; for (let day = new Date('2026-10-13T00:00:00Z'); day <= new Date('2027-03-23T00:00:00Z'); day.setUTCDate(day.getUTCDate()+7)) { const utcHour = day.getUTCMonth() === 9 ? 16 : 17; out.push(new Date(`${day.toISOString().slice(0,10)}T${utcHour}:00:00Z`)); } return out; };
+export function eligible(name: string, startsAt: Date) { return name !== 'Tim Browning' || startsAt.getUTCFullYear() === 2026; }
+export function availabilityOpen(at: Date) { if (localDemo() && process.env.DEV_REGISTRATION_OPEN === 'true') return true; const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at); const get=(t:string)=>Number(parts.find(p=>p.type===t)?.value); return parts.find(p=>p.type==='weekday')?.value==='Fri' && (get('hour') > 9 || (get('hour')===9 && get('minute')>=0)) && get('hour') < 12; }
+export function draw<T>(keen: T[], random: (max:number)=>number = cryptoRandom) { const a=[...keen]; for(let i=a.length-1;i>0;i--){ const j=random(i+1); [a[i],a[j]]=[a[j],a[i]]; } return { selected:a.slice(0,10), reserves:a.slice(10) }; }
+function cryptoRandom(max:number){ const buf=new Uint32Array(1); crypto.getRandomValues(buf); return Math.floor(buf[0] / 2**32 * max); }
+export function validLineup(selected:number[], reserves:number[], eligibleIds:Set<number>) { const all=[...selected,...reserves]; return selected.length<=10 && new Set(all).size===all.length && all.every(id=>eligibleIds.has(id)); }

@@ -1,0 +1,21 @@
+services:
+  migrate:
+    image: ${IMAGE}
+    env_file: .env
+    volumes: [football-data:/app/data]
+    command: ["node", "--import", "tsx", "src/db/migrate.ts"]
+    restart: "no"
+  web:
+    image: ${IMAGE}
+    env_file: .env
+    volumes: [football-data:/app/data]
+    ports: ["127.0.0.1:4321:4321"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://localhost:4321/api/health')"], interval: 30s, timeout: 5s, retries: 3 }
+  scheduler:
+    image: ${IMAGE}
+    env_file: .env
+    volumes: [football-data:/app/data]
+    command: ["node", "--import", "tsx", "src/scheduler.ts"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+volumes: { football-data: {} }
