@@ -1,5 +1,1 @@
-import Database from 'better-sqlite3'; import { mkdirSync } from 'node:fs'; import { dirname } from 'node:path'; import { seedPlayers } from './seed.js';
-const url = process.env.DATABASE_URL ?? './data/football.db'; if (!url.startsWith(':memory:')) mkdirSync(dirname(url), { recursive: true });
-const db = new Database(url); db.pragma('journal_mode = WAL'); db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 5000');
-db.exec(`CREATE TABLE IF NOT EXISTS migrations (id INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS players (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE); CREATE TABLE IF NOT EXISTS fixtures (id INTEGER PRIMARY KEY AUTOINCREMENT, starts_at TEXT NOT NULL UNIQUE, materialized_at TEXT NOT NULL, finalized_at TEXT); CREATE TABLE IF NOT EXISTS availability (fixture_id INTEGER NOT NULL REFERENCES fixtures(id), player_id INTEGER NOT NULL REFERENCES players(id), keen INTEGER NOT NULL DEFAULT 0, UNIQUE(fixture_id, player_id)); CREATE TABLE IF NOT EXISTS lineup (fixture_id INTEGER NOT NULL REFERENCES fixtures(id), player_id INTEGER NOT NULL REFERENCES players(id), role TEXT NOT NULL CHECK(role IN ('selected','reserve')), position INTEGER NOT NULL, UNIQUE(fixture_id, player_id));`);
-seedPlayers(db); db.close();
+// Apply schema changes with Wrangler: `npm run db:migrate` or `npm run db:migrate:remote`.

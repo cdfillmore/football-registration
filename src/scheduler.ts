@@ -1,2 +1,1 @@
-import { reconcile, finalize } from './db/service.js'; import './db/migrate.js';
-const tick=()=>{ reconcile(); finalize(); }; tick(); setInterval(tick,60000);
+// Scheduling is handled by the Cloudflare Worker's scheduled() handler.

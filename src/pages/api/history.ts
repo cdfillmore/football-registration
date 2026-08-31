@@ -1,2 +1,4 @@
-import type { APIRoute } from 'astro'; import { db } from '../../db/client.js';
-export const GET: APIRoute=()=>{const fs=db.prepare('SELECT id,starts_at FROM fixtures WHERE finalized_at IS NOT NULL ORDER BY starts_at DESC').all() as any[];const totals=db.prepare("SELECT p.name,COUNT(*) reserve FROM lineup l JOIN players p ON p.id=l.player_id WHERE l.role='reserve' GROUP BY l.player_id ORDER BY reserve DESC,p.name").all();return Response.json({fixtures:fs.map(f=>({startsAt:f.starts_at,selected:(db.prepare("SELECT p.name FROM lineup l JOIN players p ON p.id=l.player_id WHERE l.fixture_id=? AND l.role='selected' ORDER BY position").all(f.id) as any[]).map(x=>x.name),reserves:(db.prepare("SELECT p.name FROM lineup l JOIN players p ON p.id=l.player_id WHERE l.fixture_id=? AND l.role='reserve' ORDER BY position").all(f.id) as any[]).map(x=>x.name)})),totals},{headers:{'cache-control':'no-store'}});};
+import type { APIRoute } from 'astro';
+import { getDb } from '../../db/client.js';
+import { history } from '../../db/queries.js';
+export const GET: APIRoute = async ({ locals }) => Response.json({ fixtures: await history(getDb(locals)) }, { headers: { 'cache-control': 'no-store' } });

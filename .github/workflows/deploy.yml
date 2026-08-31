@@ -1,23 +1,29 @@
-name: Deploy
-on: { push: { branches: [main] } }
-permissions: { contents: read, packages: write }
+name: Verify and deploy
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
 jobs:
-  publish:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci
       - run: npm run check && npm test && npm run build
-      - uses: docker/login-action@v3
-        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
-      - uses: docker/build-push-action@v6
-        with: { push: true, tags: 'ghcr.io/${{ github.repository }}:${{ github.sha }}' }
-      - uses: appleboy/ssh-action@v1.2.2
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
         with:
-          host: '${{ secrets.DEPLOY_HOST }}'
-          username: '${{ secrets.DEPLOY_USER }}'
-          key: '${{ secrets.DEPLOY_KEY }}'
-          fingerprint: '${{ secrets.DEPLOY_FINGERPRINT }}'
-          script: 'cd ${{ secrets.DEPLOY_PATH }} && sed -i "s|^IMAGE=.*|IMAGE=ghcr.io/${{ github.repository }}:${{ github.sha }}|" .env && docker compose -f docker-compose.deploy.yml pull && docker compose -f docker-compose.deploy.yml up -d'
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply football_registration --remote
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

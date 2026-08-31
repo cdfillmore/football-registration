@@ -1,0 +1,22 @@
+{
+  "name": "football-registration",
+  "main": "./dist/_worker.js/index.js",
+  "compatibility_date": "2026-08-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "d1_databases": [
+    {
+      "binding": "football_registration",
+      "database_name": "football-registration",
+      "database_id": "9f2c9510-add6-46e3-b1c0-11b8d8cf1b57",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "observability": { "enabled": true }
+}

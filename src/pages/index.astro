@@ -1,11 +1,5 @@
 ---
-import Layout from '../layouts/Layout.astro'; import { db } from '../db/client.js'; import { reconcile } from '../db/service.js';
-reconcile();
-const finalized = db.prepare('SELECT id,starts_at FROM fixtures WHERE finalized_at IS NOT NULL ORDER BY starts_at DESC').all() as any[];
-const history = finalized.map(f => ({ startsAt: f.starts_at, selected: (db.prepare("SELECT p.name FROM lineup l JOIN players p ON p.id=l.player_id WHERE l.fixture_id=? AND l.role='selected' ORDER BY position").all(f.id) as any[]).map(p => p.name), reserves: (db.prepare("SELECT p.name FROM lineup l JOIN players p ON p.id=l.player_id WHERE l.fixture_id=? AND l.role='reserve' ORDER BY position").all(f.id) as any[]).map(p => p.name) }));
-const statistics = (db.prepare("SELECT p.name,COALESCE(SUM(CASE WHEN l.role='selected' THEN 1 ELSE 0 END),0) selected,COALESCE(SUM(CASE WHEN l.role='reserve' THEN 1 ELSE 0 END),0) reserve FROM players p LEFT JOIN lineup l ON l.player_id=p.id GROUP BY p.id ORDER BY p.name").all() as any[]);
-const totalFixtures = finalized.length;
-const scale = Math.max(1, ...statistics.map(p => p.selected + p.reserve));
+import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="Football registration">
   <main>
@@ -13,8 +7,8 @@ const scale = Math.max(1, ...statistics.map(p => p.selected + p.reserve));
     <p class="intro">Register your availability for the next fixture. Selection is randomized every Friday at noon.</p>
     <nav class="tabs"><a class="active" href="#registration">Registration</a><a href="#history">History</a><a href="#statistics">Statistics</a><a href="/admin">Admin</a></nav>
     <section id="registration" class="panel"><div class="section-heading"><div><p class="eyebrow">UPCOMING FIXTURE</p><h2 id="fixture-date">Loading…</h2></div><span id="window" class="pill">Checking window</span></div><p id="message" class="muted"></p><div id="roster" class="roster"></div></section>
-    <section id="history" class="panel"><div class="section-heading"><div><p class="eyebrow">PAST WEEKS</p><h2>History</h2></div></div><div id="history-list">{history.length ? history.map(f => <article class="history-row"><strong>{new Intl.DateTimeFormat('en-GB',{dateStyle:'full',timeStyle:'short',timeZone:'Europe/Vienna'}).format(new Date(f.startsAt))}</strong><span>Selected: {f.selected.join(', ') || '—'}</span><span>Reserves: {f.reserves.join(', ') || '—'}</span></article>) : 'No finalized fixtures yet.'}</div></section>
-    <section id="statistics" class="panel"><div class="section-heading"><div><p class="eyebrow">SEASON TOTALS</p><h2>Statistics</h2></div></div><p class="muted stats-legend">Selected / reserves / finalized fixtures to date</p><div id="stats" class="stats">{statistics.map(p => <div class="bar-row"><span>{p.name}</span><div class="bar"><i class="selected" style={`width:${p.selected/scale*100}%`}></i><i class="reserve" style={`width:${p.reserve/scale*100}%`}></i></div><b>{p.selected} / {p.reserve} / {totalFixtures}</b></div>)}</div></section>
+    <section id="history" class="panel"><div class="section-heading"><div><p class="eyebrow">PAST WEEKS</p><h2>History</h2></div></div><div id="history-list">Loading…</div></section>
+    <section id="statistics" class="panel"><div class="section-heading"><div><p class="eyebrow">SEASON TOTALS</p><h2>Statistics</h2></div></div><p class="muted stats-legend">Selected / reserves / finalized fixtures to date</p><div id="stats" class="stats">Loading…</div></section>
   </main>
   <script is:inline>
     // @ts-nocheck

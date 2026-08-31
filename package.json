@@ -2,7 +2,30 @@
   "name": "football-registration",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "astro dev", "build": "astro build", "preview": "node ./dist/server/entry.mjs", "check": "astro check", "lint": "eslint .", "test": "vitest run", "db:migrate": "tsx src/db/migrate.ts", "scheduler": "tsx src/scheduler.ts" },
-  "dependencies": { "@astrojs/node": "^9.5.0", "astro": "^5.13.0", "better-sqlite3": "^12.2.0", "drizzle-orm": "^0.44.5", "jose": "^6.0.10", "preact": "^10.26.9", "tsx": "^4.20.3" },
-  "devDependencies": { "@astrojs/check": "^0.9.4", "@types/better-sqlite3": "^7.6.13", "@types/node": "^24.3.0", "drizzle-kit": "^0.31.4", "eslint": "^9.33.0", "typescript": "^5.9.2", "vitest": "^3.2.4" }
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler dev",
+    "check": "astro check",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "db:migrate": "wrangler d1 migrations apply football_registration --local",
+    "db:migrate:remote": "wrangler d1 migrations apply football_registration --remote",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.0",
+    "astro": "^5.13.0",
+    "jose": "^6.0.10",
+    "preact": "^10.26.9",
+    "tsx": "^4.20.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.33.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.127.1"
+  }
 }
