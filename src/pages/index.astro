@@ -1,11 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getDb } from '../db/client.js';
-import { history, statistics } from '../db/queries.js';
-const historyData = await history(getDb(Astro.locals));
-const statisticsData = await statistics(getDb(Astro.locals));
-const totalFixtures = statisticsData.totalFixtures;
-const scale = Math.max(1, ...statisticsData.players.map(p => p.selected + p.reserve));
 ---
 <Layout title="Football registration">
   <main>
@@ -13,8 +7,8 @@ const scale = Math.max(1, ...statisticsData.players.map(p => p.selected + p.rese
     <p class="intro">Register your availability for the next fixture. Selection is randomized every Friday at noon.</p>
     <nav class="tabs"><a class="active" href="#registration">Registration</a><a href="#history">History</a><a href="#statistics">Statistics</a><a href="/admin">Admin</a></nav>
     <section id="registration" class="panel"><div class="section-heading"><div><p class="eyebrow">UPCOMING FIXTURE</p><h2 id="fixture-date">Loading…</h2></div><span id="window" class="pill">Checking window</span></div><p id="message" class="muted"></p><div id="roster" class="roster"></div></section>
-    <section id="history" class="panel"><div class="section-heading"><div><p class="eyebrow">PAST WEEKS</p><h2>History</h2></div></div><div id="history-list">{historyData.length ? historyData.map(f => <article class="history-row"><strong>{new Intl.DateTimeFormat('en-GB',{dateStyle:'full',timeStyle:'short',timeZone:'Europe/Vienna'}).format(new Date(f.startsAt))}</strong><span><b>Selected:</b> {f.selected.join(', ') || '—'}</span><span><b>Reserves:</b> {f.reserves.join(', ') || '—'}</span></article>) : 'No finalized fixtures yet.'}</div></section>
-    <section id="statistics" class="panel"><div class="section-heading"><div><p class="eyebrow">SEASON TOTALS</p><h2>Statistics</h2></div><button id="stats-toggle" type="button">Chronological view</button></div><p id="stats-legend" class="muted stats-legend">Selected / reserves / finalized fixtures to date</p><div id="stats" class="stats">{statisticsData.players.map(p => <div class="bar-row"><span>{p.name}</span><div class="bar"><i class="selected" style={`width:${p.selected/scale*100}%`}></i><i class="reserve" style={`width:${p.reserve/scale*100}%`}></i></div><b>{p.selected} / {p.reserve} / {totalFixtures}</b></div>)}</div></section>
+    <section id="history" class="panel"><div class="section-heading"><div><p class="eyebrow">PAST WEEKS</p><h2>History</h2></div></div><div id="history-list">Loading…</div></section>
+    <section id="statistics" class="panel"><div class="section-heading"><div><p class="eyebrow">SEASON TOTALS</p><h2>Statistics</h2></div><button id="stats-toggle" type="button">Chronological view</button></div><p id="stats-legend" class="muted stats-legend">Selected / reserves / finalized fixtures to date</p><div id="stats" class="stats">Loading…</div></section>
   </main>
   <script is:inline>
     // @ts-nocheck
@@ -24,7 +18,10 @@ const scale = Math.max(1, ...statisticsData.players.map(p => p.selected + p.rese
     let chronological=false, latestStats;
     const renderStats=s=>{const target=document.querySelector('#stats'),legend=document.querySelector('#stats-legend'),toggle=document.querySelector('#stats-toggle');if(!s)return;if(chronological){legend.textContent='Fixtures oldest to newest · green selected · yellow reserve · grey not selected';toggle.textContent='Totals view';target.className='stats';target.innerHTML=s.players.map(p=>'<div class="bar-row chronological-row"><span>'+p.name+'</span><div class="bar chronological-bar">'+p.appearances.map((role,i)=>'<i class="'+(role||'empty')+'" title="'+fmt(s.fixtures[i].startsAt)+' · '+(role||'Not selected')+'"></i>').join('')+'</div><b>'+p.selected+' / '+p.reserve+' / '+s.totalFixtures+'</b></div>').join('')}else{legend.textContent='Selected / reserves / finalized fixtures to date';toggle.textContent='Chronological view';target.className='stats';const scale=Math.max(1,...s.players.map(p=>p.selected+p.reserve));target.innerHTML=s.players.map(p=>`<div class="bar-row"><span>${p.name}</span><div class="bar"><i class="selected" style="width:${p.selected/scale*100}%"></i><i class="reserve" style="width:${p.reserve/scale*100}%"></i></div><b>${p.selected} / ${p.reserve} / ${s.totalFixtures}</b></div>`).join('')}};
     document.querySelector('#stats-toggle').onclick=()=>{chronological=!chronological;renderStats(latestStats)};
-    async function secondary(){try{const raw=await (await fetch('/api/statistics',{cache:'no-store'})).then(r=>r.json()),h=await (await fetch('/api/history',{cache:'no-store'})).then(r=>r.json()),ordered=h.fixtures.slice().reverse();const s={...raw,fixtures:ordered,players:raw.players.map(p=>({...p,appearances:ordered.map(f=>f.selected.includes(p.name)?'selected':f.reserves.includes(p.name)?'reserve':null)}))};latestStats=s;renderStats(s);document.querySelector('#history-list').innerHTML=h.fixtures.length?h.fixtures.map(f=>`<article class="history-row"><strong>${fmt(f.startsAt)}</strong><span><b>Selected:</b> ${f.selected.join(', ')||'—'}</span><span><b>Reserves:</b> ${f.reserves.join(', ')||'—'}</span></article>`).join(''):'No finalized fixtures yet.';}catch(error){console.error('Could not refresh history/statistics',error);}}
-    load(); secondary(); setInterval(secondary, 5000);
+    async function secondary(){try{const r=await fetch('/api/public-summary',{cache:'no-store'});if(!r.ok)throw new Error('API returned '+r.status);const d=await r.json(),s=d.statistics;latestStats=s;renderStats(s);const h=d.history;document.querySelector('#history-list').innerHTML=h.length?h.map(f=>`<article class="history-row"><strong>${fmt(f.startsAt)}</strong><span><b>Selected:</b> ${f.selected.join(', ')||'—'}</span><span><b>Reserves:</b> ${f.reserves.join(', ')||'—'}</span></article>`).join(''):'No finalized fixtures yet.';}catch(error){console.error('Could not refresh history/statistics',error);}}
+    let refreshTimer;
+    const scheduleSecondary=()=>{clearTimeout(refreshTimer);if(!document.hidden)refreshTimer=setTimeout(async()=>{await secondary();scheduleSecondary()},30000)};
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(refreshTimer);else{secondary().finally(scheduleSecondary)}});
+    load(); secondary().finally(scheduleSecondary);
   </script>
 </Layout>
