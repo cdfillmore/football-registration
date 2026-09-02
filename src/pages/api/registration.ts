@@ -1,12 +1,13 @@
 import type { APIRoute } from 'astro';
 import { getDb } from '../../db/client.js';
-import { reconcile } from '../../db/service.js';
+import { reconcileFixture } from '../../db/service.js';
 import { availabilityOpen, fixtureDates, now, registrationClosesAt, registrationOpensAt } from '../../domain.js';
 
 export const GET: APIRoute = async ({ locals }) => {
-  const db = getDb(locals); await reconcile(db); const at = now();
-  const candidateRows = await db.prepare('SELECT * FROM fixtures WHERE finalized_at IS NULL AND starts_at > ? ORDER BY starts_at').bind(at.toISOString()).all<any>();
+  const db = getDb(locals); const at = now();
   const scheduledStart = fixtureDates().find(date => date > at);
+  if (scheduledStart) await reconcileFixture(db, scheduledStart, at);
+  const candidateRows = await db.prepare('SELECT * FROM fixtures WHERE finalized_at IS NULL AND starts_at > ? ORDER BY starts_at').bind(at.toISOString()).all<any>();
   const candidate = candidateRows.results[0];
   const useCandidate = candidate && (!scheduledStart || new Date(candidate.starts_at) <= scheduledStart);
   const f = useCandidate ? candidate : scheduledStart ? await db.prepare('SELECT * FROM fixtures WHERE starts_at=?').bind(scheduledStart.toISOString()).first<any>() : null;

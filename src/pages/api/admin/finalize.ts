@@ -1,16 +1,18 @@
 import type { APIRoute } from 'astro';
 import { getDb } from '../../../db/client.js';
-import { reconcile } from '../../../db/service.js';
-import { draw, now } from '../../../domain.js';
+import { reconcileFixture } from '../../../db/service.js';
+import { draw, fixtureDates, now } from '../../../domain.js';
 import { originOk, validCookie } from '../../../lib/http.js';
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const secret = locals.runtime.env.SESSION_SECRET ?? process.env.SESSION_SECRET ?? 'dev-secret';
   if (!validCookie(cookies.get('admin_session')?.value, secret) || !originOk(request, locals.runtime.env.ORIGIN)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  const db = getDb(locals); await reconcile(db);
+  const db = getDb(locals); const currentTime = now();
+  const scheduledStart = fixtureDates().find(date => date > currentTime);
+  if (scheduledStart) await reconcileFixture(db, scheduledStart, currentTime);
   const fixture = await db.prepare('SELECT id,starts_at FROM fixtures WHERE finalized_at IS NULL ORDER BY starts_at LIMIT 1').first<{ id: number; starts_at: string }>();
   if (!fixture) return Response.json({ error: 'There is no unfinalized fixture.' }, { status: 404 });
   const keen = await db.prepare('SELECT player_id FROM availability WHERE fixture_id=? AND keen=1').bind(fixture.id).all<{ player_id: number }>();
-  const result = draw(keen.results.map(row => row.player_id)); const at = now().toISOString();
+  const result = draw(keen.results.map(row => row.player_id)); const at = currentTime.toISOString();
   const claim = await db.prepare('UPDATE fixtures SET finalized_at=? WHERE id=? AND finalized_at IS NULL').bind(at, fixture.id).run();
   if (!claim.meta.changes) return Response.json({ error: 'Fixture was already finalized.' }, { status: 409 });
   const statements = [...result.selected.map((id, position) => db.prepare('INSERT INTO lineup(fixture_id,player_id,role,position) VALUES (?,?,?,?)').bind(fixture.id, id, 'selected', position)), ...result.reserves.map((id, position) => db.prepare('INSERT INTO lineup(fixture_id,player_id,role,position) VALUES (?,?,?,?)').bind(fixture.id, id, 'reserve', position))];

@@ -4,13 +4,23 @@ import type { Database } from './client.js';
 export async function reconcile(db: Database, at = now()) {
   for (const date of fixtureDates()) {
     if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) continue;
-    await db.prepare('INSERT OR IGNORE INTO fixtures(starts_at,materialized_at) VALUES (?,?)').bind(date.toISOString(), at.toISOString()).run();
-    const fixture = await db.prepare('SELECT id FROM fixtures WHERE starts_at=?').bind(date.toISOString()).first<{ id: number }>();
-    if (!fixture) continue;
-    const people = await db.prepare('SELECT id,name FROM players').all<{ id: number; name: string }>();
-    const statements = people.results.filter(p => eligible(p.name, date)).map(p => db.prepare('INSERT OR IGNORE INTO availability(fixture_id,player_id,keen) VALUES (?,?,0)').bind(fixture.id, p.id));
-    if (statements.length) await db.batch(statements);
+    await materializeFixture(db, date, at);
   }
+}
+
+export async function reconcileFixture(db: Database, date: Date, at = now()) {
+  if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) return;
+  await materializeFixture(db, date, at);
+}
+
+async function materializeFixture(db: Database, date: Date, at: Date) {
+  const inserted = await db.prepare('INSERT OR IGNORE INTO fixtures(starts_at,materialized_at) VALUES (?,?)').bind(date.toISOString(), at.toISOString()).run();
+  if (!inserted.meta.changes) return;
+  const fixture = await db.prepare('SELECT id FROM fixtures WHERE starts_at=?').bind(date.toISOString()).first<{ id: number }>();
+  if (!fixture) return;
+  const people = await db.prepare('SELECT id,name FROM players').all<{ id: number; name: string }>();
+  const statements = people.results.filter(p => eligible(p.name, date)).map(p => db.prepare('INSERT OR IGNORE INTO availability(fixture_id,player_id,keen) VALUES (?,?,0)').bind(fixture.id, p.id));
+  if (statements.length) await db.batch(statements);
 }
 
 export async function finalize(db: Database, at = now()) {
