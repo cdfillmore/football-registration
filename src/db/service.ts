@@ -1,7 +1,18 @@
-import { fixtureDates, eligible, draw, localDemo, now, validLineup } from '../domain.js';
+import { fixtureDates, eligible, draw, localDemo, mondayAtSix, now, registrationClosesAt, validLineup } from '../domain.js';
 import type { Database } from './client.js';
 
+export async function correctFutureMondayFixtures(db: Database, at = now()) {
+  const fixtures = await db.prepare('SELECT id,starts_at FROM fixtures WHERE starts_at > ?').bind(at.toISOString()).all<{ id: number; starts_at: string }>();
+  for (const fixture of fixtures.results) {
+    const corrected = mondayAtSix(new Date(fixture.starts_at));
+    if (corrected && corrected.toISOString() !== fixture.starts_at) {
+      await db.prepare('UPDATE OR IGNORE fixtures SET starts_at=? WHERE id=? AND starts_at=?').bind(corrected.toISOString(), fixture.id, fixture.starts_at).run();
+    }
+  }
+}
+
 export async function reconcile(db: Database, at = now()) {
+  await correctFutureMondayFixtures(db, at);
   for (const date of fixtureDates()) {
     if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) continue;
     await materializeFixture(db, date, at);
@@ -9,6 +20,7 @@ export async function reconcile(db: Database, at = now()) {
 }
 
 export async function reconcileFixture(db: Database, date: Date, at = now()) {
+  await correctFutureMondayFixtures(db, at);
   if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) return;
   await materializeFixture(db, date, at);
 }
@@ -25,8 +37,9 @@ async function materializeFixture(db: Database, date: Date, at: Date) {
 
 export async function finalize(db: Database, at = now()) {
   await reconcile(db, at);
-  const fixtures = await db.prepare('SELECT id,starts_at FROM fixtures WHERE finalized_at IS NULL AND starts_at <= ?').bind(at.toISOString()).all<{ id: number; starts_at: string }>();
+  const fixtures = await db.prepare('SELECT id,starts_at FROM fixtures WHERE finalized_at IS NULL').all<{ id: number; starts_at: string }>();
   for (const fixture of fixtures.results) {
+    if (registrationClosesAt(new Date(fixture.starts_at)) > at) continue;
     const keen = await db.prepare('SELECT player_id FROM availability WHERE fixture_id=? AND keen=1').bind(fixture.id).all<{ player_id: number }>();
     const result = draw(keen.results.map(row => row.player_id));
     const claim = await db.prepare('UPDATE fixtures SET finalized_at=? WHERE id=? AND finalized_at IS NULL').bind(at.toISOString(), fixture.id).run();
