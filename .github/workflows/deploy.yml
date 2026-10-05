@@ -25,3 +25,20 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
+      - name: Verify live fixture time
+        run: |
+          node --input-type=module <<'EOF'
+          const response = await fetch('https://football-registration.cdfillmore.workers.dev/api/registration', { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Registration API returned ${response.status}`);
+          const { fixture } = await response.json();
+          console.log(`Upcoming fixture: ${fixture?.startsAt ?? 'none'}`);
+          if (fixture) {
+            const parts = new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'Europe/Vienna', weekday: 'short', hour: '2-digit', hourCycle: 'h23'
+            }).formatToParts(new Date(fixture.startsAt));
+            const get = type => parts.find(part => part.type === type)?.value;
+            if (get('weekday') === 'Mon' && get('hour') !== '18') {
+              throw new Error(`Monday fixture is scheduled for ${get('hour')}:00 Vienna time`);
+            }
+          }
+          EOF
