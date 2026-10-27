@@ -1,12 +1,20 @@
 export const TZ = 'Europe/Vienna';
 export const localDemo = () => process.env.NODE_ENV !== 'production' && Boolean(process.env.DEV_FIXTURE_START);
 export const now = () => process.env.NODE_ENV !== 'production' && process.env.DEV_NOW ? new Date(process.env.DEV_NOW) : new Date();
-export const fixtureDates = () => { if (localDemo()) return [new Date(process.env.DEV_FIXTURE_START!)]; const out: Date[] = []; for (let day = new Date('2026-10-13T00:00:00Z'); day <= new Date('2027-03-23T00:00:00Z'); day.setUTCDate(day.getUTCDate()+7)) { const utcHour = day.getUTCMonth() === 9 ? 16 : 17; out.push(new Date(`${day.toISOString().slice(0,10)}T${utcHour}:00:00Z`)); } return out; };
+export const fixtureDates = () => {
+  if (localDemo()) return [new Date(process.env.DEV_FIXTURE_START!)];
+  const out: Date[] = [];
+  for (const day = new Date('2026-10-13T00:00:00Z'); day <= new Date('2027-03-23T00:00:00Z'); day.setUTCDate(day.getUTCDate() + 7)) {
+    out.push(viennaDateAt(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate(), 18));
+  }
+  return out;
+};
 export function eligible(name: string, startsAt: Date) { return name !== 'Tim Browning' || startsAt.getUTCFullYear() === 2026; }
 export function availabilityOpen(at: Date) { if (localDemo() && process.env.DEV_REGISTRATION_OPEN === 'true') return true; const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at); const get=(t:string)=>Number(parts.find(p=>p.type===t)?.value); return parts.find(p=>p.type==='weekday')?.value==='Fri' && (get('hour') > 9 || (get('hour')===9 && get('minute')>=0)) && get('hour') < 12; }
 function partsAt(date: Date) { const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date); const get = (type: string) => parts.find(p => p.type === type)?.value ?? ''; return { year: Number(get('year')), month: Number(get('month')), day: Number(get('day')), weekday: get('weekday'), hour: Number(get('hour')), minute: Number(get('minute')) }; }
 function viennaDateAt(year: number, month: number, day: number, hour: number, minute = 0) { const target = hour * 60 + minute; const candidate = new Date(Date.UTC(year, month - 1, day, hour, minute)); const shown = partsAt(candidate).hour * 60 + partsAt(candidate).minute; return new Date(candidate.getTime() + (target - shown) * 60000); }
 export function mondayAtSix(startsAt: Date) { const p = partsAt(startsAt); return p.weekday === 'Mon' ? viennaDateAt(p.year, p.month, p.day, 18) : null; }
+export function fixtureAtSix(startsAt: Date) { const p = partsAt(startsAt); return p.weekday === 'Mon' || p.weekday === 'Tue' ? viennaDateAt(p.year, p.month, p.day, 18) : null; }
 export function nextMondayAtSix(at: Date) { const p = partsAt(at); const midnight = new Date(Date.UTC(p.year, p.month - 1, p.day)); const days = (1 - midnight.getUTCDay() + 7) % 7 || 7; midnight.setUTCDate(midnight.getUTCDate() + days); return viennaDateAt(midnight.getUTCFullYear(), midnight.getUTCMonth() + 1, midnight.getUTCDate(), 18); }
 export function registrationOpensAt(startsAt: Date) { const p = partsAt(startsAt); const midnight = new Date(Date.UTC(p.year, p.month - 1, p.day)); const daysBack = (midnight.getUTCDay() - 5 + 7) % 7; midnight.setUTCDate(midnight.getUTCDate() - daysBack); return viennaDateAt(midnight.getUTCFullYear(), midnight.getUTCMonth() + 1, midnight.getUTCDate(), p.weekday === 'Mon' ? 7 : 9); }
 export function registrationClosesAt(startsAt: Date) { const opening = registrationOpensAt(startsAt); return new Date(opening.getTime() + (partsAt(startsAt).weekday === 'Mon' ? 5 : 3) * 3600000); }

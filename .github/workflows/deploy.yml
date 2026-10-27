@@ -34,11 +34,11 @@ jobs:
           console.log(`Upcoming fixture: ${fixture?.startsAt ?? 'none'}`);
           if (fixture) {
             const parts = new Intl.DateTimeFormat('en-GB', {
-              timeZone: 'Europe/Vienna', weekday: 'short', hour: '2-digit', hourCycle: 'h23'
+              timeZone: 'Europe/Vienna', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
             }).formatToParts(new Date(fixture.startsAt));
             const get = type => parts.find(part => part.type === type)?.value;
-            if (get('weekday') === 'Mon' && get('hour') !== '18') {
-              throw new Error(`Monday fixture is scheduled for ${get('hour')}:00 Vienna time`);
+            if (['Mon', 'Tue'].includes(get('weekday')) && (get('hour') !== '18' || get('minute') !== '00')) {
+              throw new Error(`Fixture is scheduled for ${get('hour')}:${get('minute')} Vienna time`);
             }
           }
           EOF

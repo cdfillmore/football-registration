@@ -11,7 +11,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Availability for Tuesday fixtures is open Friday 09:00–12:00 in `Europe/Vienna`. Monday test fixtures start at 18:00 Vienna time and are open for registration Friday 07:00–12:00. The Cloudflare Worker cron finalizes fixtures after registration closes. Admin access uses `ADMIN_PASSWORD` and a signed, HTTP-only session cookie.
+Tuesday fixtures and Monday test fixtures start at 18:00 in `Europe/Vienna`, following daylight saving changes automatically. Availability for Tuesday fixtures is open Friday 09:00–12:00 Vienna time. Monday test fixtures are open for registration Friday 07:00–12:00. Reconciliation corrects stored kickoffs for today and future matches in place, preserving availability and lineups. The Cloudflare Worker cron finalizes fixtures after registration closes. Admin access uses `ADMIN_PASSWORD` and a signed, HTTP-only session cookie.
 
 ## Deployment
 

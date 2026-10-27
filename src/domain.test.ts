@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest'; import { availabilityOpen, draw, eligible, fixtureDates, mondayAtSix, nextMondayAtSix, registrationClosesAt, registrationOpenForFixture, registrationOpensAt, validLineup } from './domain.js';
+import { describe, expect, it } from 'vitest'; import { availabilityOpen, draw, eligible, fixtureAtSix, fixtureDates, mondayAtSix, nextMondayAtSix, registrationClosesAt, registrationOpenForFixture, registrationOpensAt, validLineup } from './domain.js';
 describe('season rules',()=>{it('has 24 Tuesday fixtures',()=>expect(fixtureDates()).toHaveLength(24));it('excludes Tim in 2027',()=>{expect(eligible('Tim Browning',new Date('2026-12-01T17:00:00Z'))).toBe(true);expect(eligible('Tim Browning',new Date('2027-01-05T17:00:00Z'))).toBe(false)});it('uses Vienna Friday boundaries',()=>{expect(availabilityOpen(new Date('2026-01-02T07:59:59Z'))).toBe(false);expect(availabilityOpen(new Date('2026-01-02T08:00:00Z'))).toBe(true);expect(availabilityOpen(new Date('2026-01-02T11:00:00Z'))).toBe(false)});it('draws selected then ordered reserves',()=>{const r=draw([1,2,3],()=>0);expect(r.selected).toHaveLength(3);expect(r.reserves).toEqual([])});it('validates lineups',()=>{expect(validLineup([1,2],[3],new Set([1,2,3]))).toBe(true);expect(validLineup([1,1],[],new Set([1]))).toBe(false)})});
 
 describe('fixture registration windows', () => {
+  it('opens registration before the autumn clock change using Friday’s offset', () => {
+    const fixture = new Date('2026-10-27T17:00:00Z');
+    expect(registrationOpensAt(fixture).toISOString()).toBe('2026-10-23T07:00:00.000Z');
+    expect(registrationClosesAt(fixture).toISOString()).toBe('2026-10-23T10:00:00.000Z');
+    expect(registrationOpensAt(new Date('2026-11-03T17:00:00Z')).toISOString()).toBe('2026-10-30T08:00:00.000Z');
+  });
+
   it('opens the Monday test fixture on Friday October 2 at 07:00 Vienna time', () => {
     const fixture = new Date('2026-10-05T16:00:00Z');
     expect(registrationOpensAt(fixture).toISOString()).toBe('2026-10-02T05:00:00.000Z');
@@ -18,6 +25,25 @@ describe('fixture registration windows', () => {
     expect(registrationClosesAt(fixture).toISOString()).toBe('2026-10-09T10:00:00.000Z');
     expect(registrationOpenForFixture(new Date('2026-10-09T06:59:59Z'), fixture)).toBe(false);
     expect(registrationOpenForFixture(new Date('2026-10-09T07:00:00Z'), fixture)).toBe(true);
+  });
+});
+
+describe('Tuesday kickoffs', () => {
+  it('starts every season fixture at 18:00 Vienna time', () => {
+    const format = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Vienna', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    for (const fixture of fixtureDates()) expect(format.format(fixture)).toBe('Tue 18:00');
+  });
+
+  it('uses the correct UTC offset on each side of the October clock change', () => {
+    const fixtures = fixtureDates().map(date => date.toISOString());
+    expect(fixtures).toContain('2026-10-20T16:00:00.000Z');
+    expect(fixtures).toContain('2026-10-27T17:00:00.000Z');
+    expect(fixtures).toContain('2026-11-03T17:00:00.000Z');
+  });
+
+  it('keeps 18:00 after the spring clock change as well', () => {
+    expect(fixtureAtSix(new Date('2027-03-23T17:00:00Z'))?.toISOString()).toBe('2027-03-23T17:00:00.000Z');
+    expect(fixtureAtSix(new Date('2027-03-30T17:00:00Z'))?.toISOString()).toBe('2027-03-30T16:00:00.000Z');
   });
 });
 

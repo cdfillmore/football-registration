@@ -1,10 +1,14 @@
-import { fixtureDates, eligible, draw, localDemo, mondayAtSix, now, registrationClosesAt, validLineup } from '../domain.js';
+import { fixtureDates, eligible, draw, localDemo, fixtureAtSix, now, registrationClosesAt, validLineup } from '../domain.js';
 import type { Database } from './client.js';
 
-export async function correctFutureMondayFixtures(db: Database, at = now()) {
-  const fixtures = await db.prepare('SELECT id,starts_at FROM fixtures WHERE starts_at > ?').bind(at.toISOString()).all<{ id: number; starts_at: string }>();
+export async function correctUpcomingFixtures(db: Database, at = now()) {
+  if (localDemo()) return;
+  // Include today's fixture even after its incorrectly stored kickoff has passed.
+  // Evening Vienna fixtures always fall on the same UTC calendar date.
+  const today = `${at.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const fixtures = await db.prepare('SELECT id,starts_at FROM fixtures WHERE starts_at >= ?').bind(today).all<{ id: number; starts_at: string }>();
   for (const fixture of fixtures.results) {
-    const corrected = mondayAtSix(new Date(fixture.starts_at));
+    const corrected = fixtureAtSix(new Date(fixture.starts_at));
     if (corrected && corrected.toISOString() !== fixture.starts_at) {
       await db.prepare('UPDATE OR IGNORE fixtures SET starts_at=? WHERE id=? AND starts_at=?').bind(corrected.toISOString(), fixture.id, fixture.starts_at).run();
     }
@@ -12,7 +16,7 @@ export async function correctFutureMondayFixtures(db: Database, at = now()) {
 }
 
 export async function reconcile(db: Database, at = now()) {
-  await correctFutureMondayFixtures(db, at);
+  await correctUpcomingFixtures(db, at);
   for (const date of fixtureDates()) {
     if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) continue;
     await materializeFixture(db, date, at);
@@ -20,7 +24,7 @@ export async function reconcile(db: Database, at = now()) {
 }
 
 export async function reconcileFixture(db: Database, date: Date, at = now()) {
-  await correctFutureMondayFixtures(db, at);
+  await correctUpcomingFixtures(db, at);
   if (!localDemo() && at < new Date(date.getTime() - 7 * 86400000)) return;
   await materializeFixture(db, date, at);
 }
